@@ -2,6 +2,14 @@
 
 Lumi 是一个生活在浏览器中的可爱互动虚拟宠物。它基于 **DeepSeek API**，能够与您聊天、在屏幕上漫步，并对您的触摸做出反应。
 
+
+![alt text](c0e05380f214b8cd8d73baad65d631a2.png)
+
+
+![alt text](40a4a6c16bf0dc4da6dc6b4aa109c2cc.png)
+
+
+
 ## ✨ 特性
 
 - **AI 智能交互**：使用 DeepSeek-V3 模型进行流畅、有趣的对话。
