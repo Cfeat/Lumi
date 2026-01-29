@@ -1,0 +1,5 @@
+{
+  "name": "Lumi - AI Browser Pet",
+  "description": "An interactive, AI-powered desktop pet that lives in your browser. Lumi chats, wanders, and reacts to your interactions using the Gemini API.",
+  "requestFramePermissions": []
+}
