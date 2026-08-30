@@ -1,147 +1,261 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
-import PetCharacter from './PetCharacter';
+import PetCharacter, { FXSignal } from './PetCharacter';
 import ChatBubble from './ChatBubble';
-import { PetState, PetMood, Coordinates } from '../types';
+import { PetState, PetMood, Coordinates, BehaviorAction } from '../types';
 
 interface PetProps {
   currentMessage: string | null;
   isThinking: boolean;
-  onPositionChange?: (pos: Coordinates) => void;
-  onInteract: () => void;
+  stats: PetStatsLike | null;
+  /** one-shot behavior action from the engine: {action, id} */
+  actionSignal: { action: BehaviorAction; id: number } | null;
+  onPetted: () => void;
+  onDoublePetted: () => void;
+  onDragged: () => void;
 }
 
-const MOVEMENT_INTERVAL = 5000; // Time between random movements
-const PET_SIZE = 120;
+interface PetStatsLike {
+  hunger: number;
+  mood: number;
+  energy: number;
+}
 
-const Pet: React.FC<PetProps> = ({ currentMessage, isThinking, onPositionChange, onInteract }) => {
-  // State
-  const [position, setPosition] = useState<Coordinates>({ 
-    x: window.innerWidth / 2 - PET_SIZE/2, 
-    y: window.innerHeight / 2 - PET_SIZE/2 
-  });
+const PET_SIZE = 150;
+const EDGE = 12;
+
+/** Map a BehaviorAction to a temporary pet state + face mood */
+const ACTION_STATE: Record<string, { state: PetState; mood?: PetMood; fx?: FXSignal['type']; ms: number }> = {
+  eat: { state: PetState.EATING, mood: PetMood.HAPPY, fx: 'none', ms: 2200 },
+  play: { state: PetState.PLAYING, mood: PetMood.EXCITED, fx: 'sparkles', ms: 2400 },
+  cheer: { state: PetState.CHEERING, mood: PetMood.EXCITED, fx: 'sparkles', ms: 1800 },
+  dizzy: { state: PetState.DIZZY, mood: PetMood.NEUTRAL, fx: 'none', ms: 1600 },
+  greet: { state: PetState.CHEERING, mood: PetMood.HAPPY, fx: 'sparkles', ms: 1400 },
+  shiver: { state: PetState.DIZZY, mood: PetMood.NEUTRAL, fx: 'none', ms: 1200 },
+  wake: { state: PetState.CHEERING, mood: PetMood.HAPPY, fx: 'none', ms: 900 },
+  sleep: { state: PetState.SLEEPING, mood: PetMood.SLEEPY, fx: 'none', ms: 0 },
+};
+
+function deriveMoodLocal(stats: PetStatsLike | null): PetMood {
+  if (!stats) return PetMood.HAPPY;
+  if (stats.energy < 25) return PetMood.SLEEPY;
+  if (stats.hunger < 25) return PetMood.SAD;
+  if (stats.mood > 80) return PetMood.HAPPY;
+  if (stats.energy < 45) return PetMood.TIRED;
+  return PetMood.NEUTRAL;
+}
+
+const Pet: React.FC<PetProps> = ({
+  currentMessage, isThinking, stats, actionSignal, onPetted, onDoublePetted, onDragged,
+}) => {
+  const [position, setPosition] = useState<Coordinates>(() => ({
+    x: window.innerWidth - PET_SIZE - 80,
+    y: window.innerHeight - PET_SIZE - 60,
+  }));
   const [petState, setPetState] = useState<PetState>(PetState.IDLE);
-  const [mood, setMood] = useState<PetMood>(PetMood.HAPPY);
   const [isFacingLeft, setIsFacingLeft] = useState(false);
-  
-  const controls = useAnimationControls();
-  const timerRef = useRef<number | null>(null);
-  const isDraggingRef = useRef(false);
+  const [fx, setFx] = useState<FXSignal>({ type: 'none', id: 0 });
 
-  // Screen boundaries
+  const controls = useAnimationControls();
+  const wanderTimer = useRef<number | null>(null);
+  const isDraggingRef = useRef(false);
+  const asleepRef = useRef(false);
+  const walkingRef = useRef(false);
+  const actionUntilRef = useRef(0);
+  const actionStateRef = useRef<PetState | null>(null);
+  const actionMoodRef = useRef<PetMood | null>(null);
+  const fxIdRef = useRef(0);
+
   const getBounds = () => ({
-    width: window.innerWidth - PET_SIZE,
-    height: window.innerHeight - PET_SIZE
+    maxX: window.innerWidth - PET_SIZE - EDGE,
+    maxY: window.innerHeight - PET_SIZE - EDGE,
   });
 
-  // Random movement logic
-  const wander = useCallback(() => {
-    if (isDraggingRef.current || isThinking || currentMessage) return;
+  const triggerFx = (type: FXSignal['type']) => {
+    if (type === 'none') return;
+    fxIdRef.current += 1;
+    setFx({ type, id: fxIdRef.current });
+  };
 
-    // 30% chance to sleep, 30% chance to stay idle, 40% chance to walk
-    const choice = Math.random();
+  /* ---------------- one-shot actions from the behavior engine ---------------- */
 
-    if (choice < 0.3) {
+  useEffect(() => {
+    if (!actionSignal) return;
+    const { action } = actionSignal;
+
+    if (action === 'sleep') {
+      asleepRef.current = true;
+      walkingRef.current = false;
+      controls.stop();
       setPetState(PetState.SLEEPING);
-    } else if (choice < 0.6) {
-      setPetState(PetState.IDLE);
-    } else {
-      setPetState(PetState.WALKING);
-      
-      const bounds = getBounds();
-      const targetX = Math.random() * bounds.width;
-      const targetY = Math.random() * bounds.height;
-      
-      setIsFacingLeft(targetX < position.x);
+      return;
+    }
+    if (action === 'wake') {
+      asleepRef.current = false;
+      // brief happy bounce handled below via ACTION_STATE
+    }
 
-      // Animate movement
+    const conf = ACTION_STATE[action];
+    if (!conf) return;
+
+    if (action !== 'sleep') asleepRef.current = false;
+    actionStateRef.current = conf.state;
+    actionMoodRef.current = conf.mood ?? null;
+    actionUntilRef.current = Date.now() + conf.ms;
+    triggerFx(conf.fx ?? 'none');
+    setPetState(conf.state);
+
+    if (conf.ms > 0) {
+      window.setTimeout(() => {
+        if (Date.now() >= actionUntilRef.current - 10) {
+          actionStateRef.current = null;
+          actionMoodRef.current = null;
+          if (!isThinking && !currentMessage && !asleepRef.current && !walkingRef.current) {
+            setPetState(PetState.IDLE);
+          }
+        }
+      }, conf.ms + 20);
+    }
+  }, [actionSignal?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---------------- reaction to thinking / chatting ---------------- */
+
+  useEffect(() => {
+    if (isThinking) {
+      walkingRef.current = false;
+      controls.stop();
+      setPetState(PetState.THINKING);
+    } else if (currentMessage) {
+      walkingRef.current = false;
+      controls.stop();
+      setPetState((s) => (s === PetState.SLEEPING || actionStateRef.current ? s : PetState.CHATTING));
+    } else if (petState === PetState.THINKING || petState === PetState.CHATTING) {
+      if (!asleepRef.current && !actionStateRef.current) setPetState(PetState.IDLE);
+    }
+  }, [isThinking, currentMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---------------- wander ---------------- */
+
+  const wander = useCallback(() => {
+    if (isDraggingRef.current || isThinking || currentMessage || asleepRef.current) return;
+    if (actionStateRef.current && Date.now() < actionUntilRef.current) return;
+    if (document.hidden) return;
+
+    const roll = Math.random();
+    if (roll < 0.34) {
+      // stroll within the comfort zone: lower half + side edges, away from center work area
+      const { maxX, maxY } = getBounds();
+      const comfortTop = window.innerHeight * 0.42;
+      const preferEdge = Math.random() < 0.5;
+      const targetX = preferEdge
+        ? (Math.random() < 0.5 ? EDGE + Math.random() * 60 : maxX - Math.random() * 60)
+        : EDGE + Math.random() * maxX;
+      const targetY = comfortTop + Math.random() * Math.max(1, maxY - comfortTop);
+
+      setIsFacingLeft(targetX < position.x);
+      walkingRef.current = true;
+      setPetState(PetState.WALKING);
       controls.start({
         x: targetX,
         y: targetY,
-        transition: { duration: 2 + Math.random() * 2, ease: "easeInOut" } // 2-4 seconds walk
+        transition: { duration: 1.6 + Math.random() * 1.8, ease: 'easeInOut' },
       }).then(() => {
+        walkingRef.current = false;
         setPosition({ x: targetX, y: targetY });
-        setPetState(PetState.IDLE);
+        if (!asleepRef.current && !actionStateRef.current && !currentMessage && !isThinking) {
+          setPetState(PetState.IDLE);
+        }
       });
+    } else if (roll < 0.42) {
+      // quick nap
+      setPetState(PetState.SLEEPING);
+      window.setTimeout(() => {
+        if (petStateRef.current === PetState.SLEEPING && !asleepRef.current) {
+          setPetState(PetState.IDLE);
+        }
+      }, 4000 + Math.random() * 4000);
     }
-  }, [position, isThinking, currentMessage, controls]);
+    // otherwise stay idle
+  }, [position.x, isThinking, currentMessage, controls]);
 
-  // Effect loop for behavior
+  const petStateRef = useRef<PetState>(petState);
+  petStateRef.current = petState;
+
   useEffect(() => {
-    // Clear existing timer
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    // Set new timer
-    timerRef.current = setInterval(wander, MOVEMENT_INTERVAL);
-
+    if (wanderTimer.current) clearInterval(wanderTimer.current);
+    wanderTimer.current = window.setInterval(wander, 4500 + Math.random() * 2500);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (wanderTimer.current) clearInterval(wanderTimer.current);
     };
   }, [wander]);
 
-  // Reaction to thinking/chatting
-  useEffect(() => {
-    if (isThinking) {
-      setPetState(PetState.THINKING);
-      controls.stop(); // Stop moving if thinking
-    } else if (currentMessage) {
-      setPetState(PetState.CHATTING);
-      controls.stop();
-      setMood(PetMood.EXCITED);
-    } else if (petState === PetState.THINKING || petState === PetState.CHATTING) {
-      setPetState(PetState.IDLE);
-    }
-  }, [isThinking, currentMessage]);
+  /* ---------------- dragging ---------------- */
 
   const handleDragStart = () => {
     isDraggingRef.current = true;
-    setPetState(PetState.DRAGGING);
+    walkingRef.current = false;
     controls.stop();
-    if (timerRef.current) clearInterval(timerRef.current);
+    setPetState(PetState.DRAGGING);
+    if (wanderTimer.current) clearInterval(wanderTimer.current);
   };
 
-  const handleDragEnd = (event: any, info: any) => {
+  const handleDragEnd = (_e: any, info: any) => {
     isDraggingRef.current = false;
-    // Update internal position state based on where drag ended
-    // We use the point relative to the viewport
     const newX = position.x + info.offset.x;
     const newY = position.y + info.offset.y;
-    
-    // Clamp to screen
-    const bounds = getBounds();
-    const clampedX = Math.max(0, Math.min(newX, bounds.width));
-    const clampedY = Math.max(0, Math.min(newY, bounds.height));
-
-    setPosition({ x: clampedX, y: clampedY });
-    // Reset visual transform offset because we updated absolute position
-    // Framer motion drag offset needs reset logic usually, but here we can just snap.
-    // However, to keep it simple with framer motion layout:
-    
+    const { maxX, maxY } = getBounds();
+    const clamped = {
+      x: Math.max(EDGE, Math.min(newX, maxX)),
+      y: Math.max(EDGE, Math.min(newY, maxY)),
+    };
+    setPosition(clamped);
+    // snap the motion transform to the new anchor
+    controls.set({ x: clamped.x, y: clamped.y });
+    actionStateRef.current = null;
+    asleepRef.current = false;
     setPetState(PetState.IDLE);
-    // Restart wander loop
-    timerRef.current = setInterval(wander, MOVEMENT_INTERVAL);
+    onDragged();
+    wanderTimer.current = window.setInterval(wander, 4500 + Math.random() * 2500);
   };
+
+  const handleClick = () => {
+    if (asleepRef.current) {
+      // waking the pet by clicking
+      asleepRef.current = false;
+      setPetState(PetState.IDLE);
+    }
+    triggerFx('hearts');
+    onPetted();
+  };
+
+  /* ---------------- face mood ---------------- */
+
+  const mood = actionMoodRef.current ?? deriveMoodLocal(stats);
 
   return (
     <motion.div
       drag
       dragMomentum={false}
+      dragElastic={0.2}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       animate={controls}
-      // Initial position
-      style={{ x: position.x, y: position.y, position: 'absolute', cursor: 'grab' }}
+      initial={{ x: position.x, y: position.y }}
+      style={{ position: 'absolute', left: 0, top: 0, cursor: 'grab', zIndex: 40 }}
       whileTap={{ cursor: 'grabbing' }}
-      onClick={onInteract}
-      className="z-40"
+      onClick={handleClick}
+      onDoubleClick={onDoublePetted}
+      data-lumi-interactive="true"
+      className="lumi-pet"
     >
       <div className="relative">
         <ChatBubble message={currentMessage} isThinking={isThinking} />
-        <PetCharacter 
-          state={petState} 
-          mood={mood} 
-          color="#a5b4fc" 
-          isFacingLeft={isFacingLeft} 
+        <PetCharacter
+          state={petState}
+          mood={mood}
+          color="#a5b4fc"
+          isFacingLeft={isFacingLeft}
+          fx={fx}
         />
       </div>
     </motion.div>

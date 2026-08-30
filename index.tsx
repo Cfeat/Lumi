@@ -13,3 +13,17 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Opt-in automated test: dispatched by the Electron main process when
+// launched with LUMI_AUTOTEST=1. Runs one full AI chat round-trip and
+// logs the result (no user interaction needed).
+window.addEventListener('lumi-autotest', async () => {
+  try {
+    const { generatePetResponse } = await import('./ai');
+    const t0 = Date.now();
+    const reply = await generatePetResponse([], '你好呀Lumi，用一句话介绍一下你自己吧！', null, 'zh');
+    console.log('[lumi:autotest]', JSON.stringify({ ok: true, ms: Date.now() - t0, reply }));
+  } catch (e: any) {
+    console.log('[lumi:autotest]', JSON.stringify({ ok: false, error: String(e?.message || e) }));
+  }
+});

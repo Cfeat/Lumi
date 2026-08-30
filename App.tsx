@@ -1,113 +1,208 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Pet from './components/Pet';
 import Controls from './components/Controls';
-import { generatePetResponse, generateIdleThought } from './api';
-import { ChatMessage, PetMood, Language } from './types';
+import StatsBar from './components/StatsBar';
+import { generatePetResponse } from './ai';
+import { createBehaviorEngine, BehaviorEngine } from './behavior';
+import { ChatMessage, Language, PetStats, BehaviorAction } from './types';
+
+const isDesktop = !!(window as any).lumi?.isDesktop;
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [currentBubbleMessage, setCurrentBubbleMessage] = useState<string | null>(null);
+  const [bubbleMessage, setBubbleMessage] = useState<string | null>(null);
   const [isThinking, setIsThinking] = useState(false);
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>(() =>
+    (localStorage.getItem('lumi-lang') as Language) || (navigator.language.startsWith('zh') ? 'zh' : 'en')
+  );
+  const [stats, setStats] = useState<PetStats | null>(null);
+  const [actionSignal, setActionSignal] = useState<{ action: BehaviorAction; id: number } | null>(null);
 
-  // Background clicking effect (visual polish)
-  const [clicks, setClicks] = useState<{x:number, y:number, id: number}[]>([]);
+  const [providerOverride, setProviderOverride] = useState<string | null>(() =>
+    localStorage.getItem('lumi-provider')
+  );
+  const [idleAI, setIdleAI] = useState<boolean>(() =>
+    localStorage.getItem('lumi-ai-idle') !== '0'
+  );
 
-  const handleStageClick = (e: React.MouseEvent) => {
-    // Only trigger if clicking the background directly
-    if ((e.target as HTMLElement).id === 'stage') {
-      const id = Date.now();
-      setClicks([...clicks, { x: e.clientX, y: e.clientY, id }]);
-      setTimeout(() => {
-        setClicks(prev => prev.filter(c => c.id !== id));
-      }, 1000);
-    }
+  const engineRef = useRef<BehaviorEngine | null>(null);
+  const bubbleTimer = useRef<number | null>(null);
+  const actionIdRef = useRef(0);
+  const langRef = useRef(language);
+  langRef.current = language;
+
+  /* ---------------- behavior engine ---------------- */
+
+  useEffect(() => {
+    const engine = createBehaviorEngine({
+      getLanguage: () => langRef.current,
+      onReaction: (r) => {
+        if (r.text) showBubble(r.text);
+        if (r.action) {
+          actionIdRef.current += 1;
+          setActionSignal({ action: r.action, id: actionIdRef.current });
+        }
+      },
+      onStats: (s) => setStats(s),
+    });
+    engineRef.current = engine;
+    engine.setLanguage(language);
+    engine.start();
+    return () => engine.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    engineRef.current?.setLanguage(language);
+    localStorage.setItem('lumi-lang', language);
+  }, [language]);
+
+  const showBubble = (text: string) => {
+    setBubbleMessage(text);
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = window.setTimeout(() => setBubbleMessage(null), 9000);
   };
 
-  const handleSendMessage = async (text: string) => {
+  /* ---------------- click-through management (desktop) ---------------- */
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    const setIgnore = (ignore: boolean) => (window as any).lumi.setIgnoreMouse(ignore);
+    let lastIgnore: boolean | null = null;
+
+    const onMove = (e: MouseEvent) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const interactive = !!(el && el.closest && el.closest('[data-lumi-interactive]'));
+      if (interactive !== lastIgnore) {
+        lastIgnore = interactive;
+        setIgnore(!interactive);
+      }
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      setIgnore(true);
+    };
+  }, []);
+
+  /* ---------------- chat ---------------- */
+
+  const handleSendMessage = useCallback(async (text: string) => {
     setIsThinking(true);
-    setCurrentBubbleMessage(null); // Clear previous
+    setBubbleMessage(null);
 
-    // Add user message to history for UI
-    const userMsg: ChatMessage = { role: 'user' as const, text };
+    const userMsg: ChatMessage = { role: 'user', text };
     const historyForUI = [...messages, userMsg];
-    setMessages(historyForUI);
+    setMessages(historyForUI.slice(-20));
 
-    // Get response
-    const response = await generatePetResponse(messages, text, PetMood.HAPPY, language);
-    
+    const response = await generatePetResponse(messages.slice(-12), text, engineRef.current?.getStats() ?? null, langRef.current);
+
     setIsThinking(false);
-    setCurrentBubbleMessage(response);
-    setMessages([...historyForUI, { role: 'model' as const, text: response }]);
-  };
+    showBubble(response);
+    setMessages([...historyForUI, { role: 'model', text: response }].slice(-20));
+  }, [messages]);
 
-  const handleFeed = async () => {
-    const msg = language === 'zh' ? "我给你好吃的！ 🍪" : "I am giving you a delicious treat! 🍪";
-    handleSendMessage(msg);
-  };
-
-  const handlePlay = async () => {
-    const msg = language === 'zh' ? "我们来玩游戏吧！" : "Let's play a game! You are it!";
-    handleSendMessage(msg);
-  };
-
-  const handlePetInteract = () => {
-    // Random interaction sound or small thought
-    if (!currentBubbleMessage && !isThinking) {
-        setIsThinking(true);
-        generateIdleThought(language).then(thought => {
-            setIsThinking(false);
-            setCurrentBubbleMessage(thought);
-        });
+  const handleFeed = useCallback(() => {
+    const r = engineRef.current?.feed();
+    if (r?.text) showBubble(r.text);
+    if (r?.action) {
+      actionIdRef.current += 1;
+      setActionSignal({ action: r.action, id: actionIdRef.current });
     }
+  }, []);
+
+  const handlePlay = useCallback(() => {
+    const r = engineRef.current?.play();
+    if (r?.text) showBubble(r.text);
+    if (r?.action) {
+      actionIdRef.current += 1;
+      setActionSignal({ action: r.action, id: actionIdRef.current });
+    }
+  }, []);
+
+  const handlePetted = useCallback(() => {
+    const r = engineRef.current?.pet();
+    if (r?.text) showBubble(r.text);
+    if (r?.action) {
+      actionIdRef.current += 1;
+      setActionSignal({ action: r.action, id: actionIdRef.current });
+    }
+  }, []);
+
+  const handleDragged = useCallback(() => {
+    const r = engineRef.current?.dragged();
+    if (r?.text) showBubble(r.text);
+    if (r?.action) {
+      actionIdRef.current += 1;
+      setActionSignal({ action: r.action, id: actionIdRef.current });
+    }
+  }, []);
+
+  const handleDoublePetted = useCallback(() => {
+    const r = engineRef.current?.jump();
+    if (r?.text) showBubble(r.text);
+    if (r?.action) {
+      actionIdRef.current += 1;
+      setActionSignal({ action: r.action, id: actionIdRef.current });
+    }
+  }, []);
+
+  /* ---------------- settings ---------------- */
+
+  const handleSelectProvider = (id: string | null) => {
+    setProviderOverride(id);
+    if (id) localStorage.setItem('lumi-provider', id);
+    else localStorage.removeItem('lumi-provider');
   };
 
-  const toggleLanguage = () => {
-    setLanguage(prev => prev === 'en' ? 'zh' : 'en');
+  const handleToggleIdleAI = (v: boolean) => {
+    setIdleAI(v);
+    localStorage.setItem('lumi-ai-idle', v ? '1' : '0');
   };
+
+  const toggleLanguage = () => setLanguage((p) => (p === 'en' ? 'zh' : 'en'));
 
   const uiText = {
-    subtitle: language === 'zh' ? "你的 AI 浏览器伙伴" : "Your AI Browser Companion"
+    subtitle: language === 'zh' ? '你的 AI 桌面萌宠' : 'Your AI Desktop Pet',
   };
 
   return (
-    <div 
-      id="stage"
-      onClick={handleStageClick}
-    >
-      {/* Background decorations */}
-      <div className="bg-decoration"></div>
-      
-      {/* Click Effects */}
-      {clicks.map(c => (
-        <div 
-          key={c.id} 
-          className="bg-click"
-          style={{ left: c.x, top: c.y }}
-        />
-      ))}
+    <div id="stage" className={isDesktop ? 'desktop-mode' : 'web-mode'}>
+      {/* Web-mode decorations (hidden on desktop) */}
+      {!isDesktop && <div className="bg-decoration" />}
+      {!isDesktop && (
+        <div className="intro-text">
+          <h1 className="intro-title">Lumi</h1>
+          <p className="intro-subtitle">{uiText.subtitle}</p>
+        </div>
+      )}
 
-      {/* Intro Text */}
-      <div className="intro-text">
-        <h1 className="intro-title">Lumi</h1>
-        <p className="intro-subtitle">{uiText.subtitle}</p>
-      </div>
+      {/* Pet (whole window is transparent on desktop; pet floats above the wallpaper) */}
+      <Pet
+        currentMessage={bubbleMessage}
+        isThinking={isThinking}
+        stats={stats}
+        actionSignal={actionSignal}
+        onPetted={handlePetted}
+        onDoublePetted={handleDoublePetted}
+        onDragged={handleDragged}
+      />
 
-      <div className="pet-container">
-        <Pet 
-            currentMessage={currentBubbleMessage}
-            isThinking={isThinking}
-            onInteract={handlePetInteract}
-        />
-      </div>
+      <StatsBar stats={stats ?? {
+        hunger: 75, mood: 70, energy: 85, affection: 0, pets: 0, feeds: 0, plays: 0, lastSeen: 0,
+      }} language={language} />
 
-      <Controls 
-        onSendMessage={handleSendMessage} 
+      <Controls
+        onSendMessage={handleSendMessage}
         onFeed={handleFeed}
         onPlay={handlePlay}
         onToggleLanguage={toggleLanguage}
         isThinking={isThinking}
         language={language}
+        providerOverride={providerOverride}
+        onSelectProvider={handleSelectProvider}
+        idleAI={idleAI}
+        onToggleIdleAI={handleToggleIdleAI}
       />
     </div>
   );

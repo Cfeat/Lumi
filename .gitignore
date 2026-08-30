@@ -1,6 +1,9 @@
 .env
 .env.*
 
+# Lumi local config (contains API keys)
+public/config/config.json
+
 # Logs
 logs
 *.log
@@ -13,6 +16,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+release
 *.local
 
 # Editor directories and files

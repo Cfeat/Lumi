@@ -1,0 +1,21 @@
+{
+  "activeProvider": "gpt",
+  "providers": {
+    "gpt": {
+      "name": "GPT (OpenAI 兼容)",
+      "baseURL": "https://api.example.com/v1",
+      "apiKey": "sk-xxxxxxxxxxxxxxxx",
+      "model": "gpt-5.5"
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "baseURL": "https://api.deepseek.com/v1",
+      "apiKey": "sk-xxxxxxxxxxxxxxxx",
+      "model": "deepseek-chat"
+    }
+  },
+  "ai": {
+    "idleThoughts": true,
+    "minAIIntervalMinutes": 10
+  }
+}

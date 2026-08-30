@@ -28,9 +28,9 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onClose, isThinking })
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: 10, scale: 0.8 }}
-        animate={{ opacity: 1, y: -20, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
+        initial={{ opacity: 0, y: 10, scale: 0.8, x: '-50%' }}
+        animate={{ opacity: 1, y: -20, scale: 1, x: '-50%' }}
+        exit={{ opacity: 0, scale: 0.5, x: '-50%', transition: { duration: 0.2 } }}
         className="bubble-container"
       >
         <div className="bubble-content">

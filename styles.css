@@ -3,56 +3,78 @@
   --primary: #6366f1;
   --primary-dark: #4f46e5;
   --accent: #ec4899;
-  
-  /* Artistic Gradients */
+
   --gradient-artistic-1: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
   --gradient-feed: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
   --gradient-play: linear-gradient(135deg, #34d399 0%, #059669 100%);
-  
+
   --text-main: #1e1b4b;
   --text-white: #ffffff;
   --text-secondary: #64748b;
-  
+
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(255, 255, 255, 0.6);
-  --glass-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
-  
+  --glass-shadow: 0 20px 50px -12px rgba(30, 27, 75, 0.18);
+
   --radius-lg: 32px;
   --radius-md: 24px;
   --radius-full: 9999px;
 }
 
-body {
+* { box-sizing: border-box; }
+
+html, body, #root {
   margin: 0;
-  font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
   overflow: hidden;
   height: 100vh;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
-  
+
   background-color: #f3f4f6;
-  /* More subtle, artistic mesh background */
-  background-image: 
+  background-image:
       radial-gradient(at 10% 0%, hsla(280, 70%, 85%, 1) 0px, transparent 50%),
       radial-gradient(at 90% 10%, hsla(220, 80%, 90%, 1) 0px, transparent 50%),
       radial-gradient(at 50% 90%, hsla(340, 70%, 92%, 1) 0px, transparent 50%);
 }
 
-#root {
-  width: 100%;
-  height: 100%;
+/* Desktop mode: the Electron window is transparent — show the real wallpaper */
+body:has(#stage.desktop-mode) {
+  background: transparent !important;
+  background-image: none !important;
 }
 
-/* --- UI Controls Container --- */
+#stage {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+#stage.desktop-mode {
+  background: transparent !important;
+  cursor: default;
+}
+
+/* ================================================================ */
+/* UI Controls Container                                            */
+/* ================================================================ */
+
 .controls-container {
   position: fixed;
-  bottom: 40px;
-  right: 40px;
+  bottom: 28px;
+  right: 28px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 24px;
+  gap: 18px;
   z-index: 50;
   pointer-events: none;
 }
@@ -61,22 +83,22 @@ body {
   pointer-events: auto;
 }
 
-/* --- Artistic Glass Panel --- */
+/* --- Glass Panel --- */
 .chat-panel {
   background: var(--glass-bg);
   backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
-  padding: 24px;
+  padding: 22px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border);
-  box-shadow: 
+  box-shadow:
     var(--glass-shadow),
-    0 0 0 1px rgba(255, 255, 255, 0.4) inset; /* Inner light ring */
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
   width: 320px;
   transform-origin: bottom right;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   margin-bottom: 10px;
 }
 
@@ -90,7 +112,7 @@ body {
 .chat-title {
   color: var(--text-main);
   font-weight: 700;
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   margin: 0;
   letter-spacing: -0.03em;
   background: linear-gradient(90deg, #4f46e5, #9333ea);
@@ -101,7 +123,7 @@ body {
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .icon-btn {
@@ -116,6 +138,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  padding: 0;
 }
 
 .icon-btn:hover {
@@ -125,17 +148,14 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-/* --- Integrated Input Group --- */
-.input-group {
-  width: 100%;
-}
+/* --- Input Group --- */
+.input-group { width: 100%; }
 
 .input-wrapper {
   position: relative;
   width: 100%;
   display: flex;
   align-items: center;
-  /* Neumorphic/Soft touch */
   background: white;
   border-radius: var(--radius-full);
   box-shadow: 0 4px 20px rgba(0,0,0,0.03);
@@ -145,7 +165,7 @@ body {
 
 .input-wrapper:focus-within {
   transform: scale(1.02);
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.12);
 }
 
 .chat-input {
@@ -172,7 +192,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--text-main); /* High contrast black/navy */
+  background: var(--text-main);
   color: white;
   border: none;
   display: flex;
@@ -194,20 +214,20 @@ body {
   cursor: default;
 }
 
-/* --- Artistic Action Buttons --- */
+/* --- Action Buttons --- */
 .action-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
 .action-btn {
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* Align text left */
+  align-items: flex-start;
   justify-content: space-between;
   padding: 16px;
-  height: 100px; /* Fixed height for block look */
+  height: 96px;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -222,6 +242,8 @@ body {
   transform: translateY(-5px);
   box-shadow: 0 15px 30px -5px rgba(0,0,0,0.15);
 }
+
+.action-btn:active { transform: translateY(-2px) scale(0.98); }
 
 .action-text {
   font-weight: 600;
@@ -243,19 +265,16 @@ body {
   z-index: 2;
 }
 
-/* Feed Style */
 .feed-btn {
   background: var(--gradient-feed);
   box-shadow: 0 10px 20px -5px rgba(251, 113, 133, 0.3);
 }
 
-/* Play Style */
 .play-btn {
   background: var(--gradient-play);
   box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.3);
 }
 
-/* Decorative circles on buttons */
 .action-btn::after {
   content: '';
   position: absolute;
@@ -268,11 +287,10 @@ body {
   pointer-events: none;
 }
 
-
 /* --- Morphing Toggle Blob --- */
 .toggle-btn {
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   color: white;
   border: none;
   cursor: pointer;
@@ -282,8 +300,7 @@ body {
   background: var(--gradient-artistic-1);
   position: relative;
   z-index: 60;
-  
-  /* Morphing Shape Animation */
+
   border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
   animation: morph 8s ease-in-out infinite;
   transition: all 0.3s ease;
@@ -296,48 +313,225 @@ body {
   100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
 }
 
-.toggle-btn:hover {
-  transform: scale(1.1);
-}
+.toggle-btn:hover { transform: scale(1.1); }
 
 .toggle-btn.open {
   background: #334155;
   border-radius: 50%;
-  animation: none; /* Stop morphing when open */
+  animation: none;
   transform: rotate(90deg);
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
 }
 
-/* --- Chat Bubble --- */
+/* ================================================================ */
+/* Stats Bar (bottom-left)                                          */
+/* ================================================================ */
+
+.stats-bar {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 45;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow);
+  padding: 14px 16px;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.82;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.stats-bar:hover { opacity: 1; transform: translateY(-2px); }
+
+.stats-bond {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.bond-hearts { font-size: 0.7rem; letter-spacing: 1px; }
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-emoji {
+  font-size: 0.85rem;
+  width: 18px;
+  text-align: center;
+}
+
+.stat-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(30, 27, 75, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.stat-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fill-hunger { background: linear-gradient(90deg, #fb923c, #f43f5e); }
+.fill-mood { background: linear-gradient(90deg, #f472b6, #c084fc); }
+.fill-energy { background: linear-gradient(90deg, #34d399, #38bdf8); }
+
+/* ================================================================ */
+/* Settings Panel                                                   */
+/* ================================================================ */
+
+.settings-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  width: 320px;
+  transform-origin: bottom right;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.settings-section { display: flex; flex-direction: column; gap: 8px; }
+
+.settings-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.settings-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.provider-list { display: flex; flex-direction: column; gap: 6px; }
+
+.provider-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1.5px solid transparent;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.provider-item:hover { background: white; transform: translateX(3px); }
+
+.provider-item.active {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--primary-dark);
+}
+
+.provider-model {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: rgba(30, 27, 75, 0.06);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.switch {
+  width: 44px;
+  height: 25px;
+  border-radius: 999px;
+  background: rgba(30, 27, 75, 0.15);
+  position: relative;
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+}
+
+.switch.on { background: var(--primary); }
+
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.switch.on .switch-knob { transform: translateX(19px); }
+
+/* ================================================================ */
+/* Chat Bubble                                                      */
+/* ================================================================ */
+
 .bubble-container {
   position: absolute;
-  bottom: 120%;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 115%;
+  left: 50%;               /* horizontal centering handled by framer-motion x:'-50%' */
   width: max-content;
-  max-width: 280px;
-  margin-bottom: 1.5rem;
+  max-width: 260px;
+  margin-bottom: 1.2rem;
   z-index: 50;
   pointer-events: none;
 }
 
 .bubble-content {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-radius: 24px;
-  border-bottom-left-radius: 4px; 
-  padding: 16px 24px;
-  box-shadow: 
-    0 20px 40px -10px rgba(0,0,0,0.1),
+  border-radius: 22px;
+  border-bottom-left-radius: 4px;
+  padding: 13px 20px;
+  box-shadow:
+    0 20px 40px -10px rgba(30, 27, 75, 0.12),
     0 0 0 1px rgba(255,255,255,1);
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   color: var(--text-main);
   text-align: center;
   position: relative;
   line-height: 1.5;
   font-weight: 500;
+  word-break: break-word;
 }
 
 .thinking-dots {
@@ -355,29 +549,34 @@ body {
   opacity: 0.6;
 }
 
-/* --- Background & Intro --- */
+/* ================================================================ */
+/* FX particles                                                     */
+/* ================================================================ */
+
+.fx-layer {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.fx-particle {
+  position: absolute;
+  bottom: 0;
+  font-size: 18px;
+  will-change: transform, opacity;
+}
+
+/* ================================================================ */
+/* Background & Intro (web mode only)                               */
+/* ================================================================ */
+
 .bg-decoration {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-
-.bg-click {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--primary);
-  border-radius: 50%;
-  animation: ripple 0.6s cubic-bezier(0, 0, 0.2, 1) forwards;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  opacity: 0.5;
-}
-
-@keyframes ripple {
-  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; border-width: 4px; }
-  100% { transform: translate(-50%, -50%) scale(2.0); opacity: 0; border-width: 0px; }
 }
 
 .intro-text {
@@ -418,14 +617,13 @@ body {
   backdrop-filter: blur(4px);
 }
 
-.pet-container {
-  cursor: grab;
-  z-index: 40;
-  filter: drop-shadow(0 20px 40px rgba(99, 102, 241, 0.15));
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
+/* ================================================================ */
+/* Pet container                                                    */
+/* ================================================================ */
 
-.pet-container:active {
-  cursor: grabbing;
-  transform: scale(0.95);
-}
+.lumi-pet { will-change: transform; }
+
+.lumi-pet:active { cursor: grabbing !important; }
+
+/* Hide scrollbars globally (fullscreen pet canvas) */
+::-webkit-scrollbar { display: none; }
