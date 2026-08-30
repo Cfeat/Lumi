@@ -1,0 +1,8 @@
+node_modules
+release
+dist
+.git
+*.log
+.vercel
+# Web version ships without API keys (offline mode)
+public/config/config.json
