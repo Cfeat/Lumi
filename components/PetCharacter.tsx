@@ -182,19 +182,22 @@ const PetCharacter: React.FC<PetCharacterProps> = ({ state, mood, isFacingLeft, 
       );
     }
     // glossy open eye (with blink squash)
+    // static translate lives on a plain <g>: framer-motion renders animated transforms
+    // as inline style.transform, which would override the SVG transform attribute
     return (
-      <motion.g
-        transform={`translate(${x}, 0)`}
-        animate={{ scaleY: isBlinking ? 0.08 : 1 }}
-        transition={{ duration: 0.09 }}
-        style={{ originY: '0px' }}
-      >
-        <ellipse cx="0" cy="0" rx="6.4" ry="8" fill={INK} />
-        <ellipse cx="0" cy="1.5" rx="6.4" ry="8" fill="none" stroke={INK} strokeWidth="0" />
-        <circle cx="2.2" cy="-3.2" r="2.6" fill="white" />
-        <circle cx="-2" cy="3.4" r="1.3" fill="white" opacity="0.85" />
-        {sleepy && <path d="M -7 -2 L 7 -2" stroke={INK} strokeWidth="3" strokeLinecap="round" />}
-      </motion.g>
+      <g transform={`translate(${x}, 0)`}>
+        <motion.g
+          animate={{ scaleY: isBlinking ? 0.08 : 1 }}
+          transition={{ duration: 0.09 }}
+          style={{ originY: '0px' }}
+        >
+          <ellipse cx="0" cy="0" rx="6.4" ry="8" fill={INK} />
+          <ellipse cx="0" cy="1.5" rx="6.4" ry="8" fill="none" stroke={INK} strokeWidth="0" />
+          <circle cx="2.2" cy="-3.2" r="2.6" fill="white" />
+          <circle cx="-2" cy="3.4" r="1.3" fill="white" opacity="0.85" />
+          {sleepy && <path d="M -7 -2 L 7 -2" stroke={INK} strokeWidth="3" strokeLinecap="round" />}
+        </motion.g>
+      </g>
     );
   };
 
